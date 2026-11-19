@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gielda-elplus",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-18",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gielda-elplus",
+      "database_id": "5e2bdeb7-bcfb-41f9-9846-363779771070"
+    }
+  ],
+  "vars": {
+    "NUM_GROUPS": "10"
+  }
+  // ADMIN_KEY: ustaw jako sekret w panelu Cloudflare lub: npx wrangler secret put ADMIN_KEY
+}
