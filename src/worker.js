@@ -2299,19 +2299,20 @@ button.gold{background:var(--grad);color:#1a1206}button.red{background:var(--bad
 </style></head><body>
 <h1>Gie\u0142da decyzji ELPLUS \xB7 panel prowadz\u0105cego</h1>
 <div class=box>Klucz: <input id=key type=password style="width:12rem"> <button onclick="saveKey()">Zapisz</button> <a href="/screen" target="_blank" style="color:var(--gold2)">Otw\xF3rz ekran</a> \xB7 <a href="/qr" target="_blank" style="color:var(--gold2)">Kody QR</a></div>
+<div class=box style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap"><span><b>Nowa gra</b> \xB7 czy\u015Bci odpowiedzi, nazwy zespo\u0142\xF3w i ranking, wraca do ekranu startowego</span><button class=red onclick="reset()">\u21BB Nowa gra (RESET)</button></div>
 <div class=box><div id=st>\u2026</div>
 <button class=gold onclick="act('close')">Zamknij rund\u0119</button><button onclick="act('extend')">+1 min</button><button class=gold onclick="act('reveal')">Ods\u0142o\u0144 wynik</button>
 <button onclick="act('lobby')">Ekran startowy</button><br>Widok ekranu: <button onclick="act('view',{view:'round'})">Runda</button><button onclick="act('view',{view:'board'})">Ranking</button><button onclick="act('view',{view:'podium'})">Podium</button></div>
 <div class=box id=rounds></div>
 <div class=box><b>Odpowiedzi w bie\u017C\u0105cej rundzie</b><div id=key2></div><table id=subs></table></div>
-<div class=box><button onclick="exp()">Eksport CSV</button> <button class=red onclick="reset()">RESET gry</button></div>
+<div class=box><button onclick="exp()">Eksport CSV</button> <span style="opacity:.7">\u2013 pobierz wyniki przed now\u0105 gr\u0105</span></div>
 <script>
 var K=localStorage.getItem("gkey")||"";document.getElementById("key").value=K;
 function saveKey(){K=document.getElementById("key").value;localStorage.setItem("gkey",K);peek()}
 function act(a,o){var b=Object.assign({key:K,action:a},o||{});return fetch("/api/admin",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}).then(function(x){return x.json()}).then(function(j){if(!j.ok)alert(j.err||"B\u0142\u0105d");peek();return j})}
 function openR(i){var m=document.getElementById("m"+i).value;act("open",{rnd:i,minutes:m})}
 function del(g){if(confirm("Usun\u0105\u0107 odpowied\u017A zespo\u0142u "+g+"?"))act("delete",{g:g})}
-function reset(){var c=prompt("Usuwa wszystkie odpowiedzi i nazwy. Wpisz RESET:");if(c)act("reset",{confirm:c})}
+function reset(){if(!confirm("Rozpocz\u0105\u0107 now\u0105 gr\u0119? Wszystkie odpowiedzi, nazwy zespo\u0142\xF3w i punkty zostan\u0105 usuni\u0119te."))return;act("reset",{confirm:"RESET"}).then(function(j){if(j&&j.ok){built=false;alert("Gotowe \u2013 gra zresetowana. Mo\u017Cna zaczyna\u0107 od nowa.")}})}
 function exp(){location.href="/api/export?key="+encodeURIComponent(K)}
 var built=false;
 function peek(){fetch("/api/admin",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({key:K,action:"peek"})}).then(function(x){return x.json()}).then(function(j){
@@ -2520,7 +2521,8 @@ async function api(req, env, url) {
   }
   if (p === "/api/admin" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
-    if (!env.ADMIN_KEY || b.key !== env.ADMIN_KEY) return json({ ok: false, err: "Brak dost\u0119pu." }, 403);
+    if (!env.ADMIN_KEY) return json({ ok: false, err: "Brak sekretu ADMIN_KEY w ustawieniach Workera (Cloudflare \u2192 Settings \u2192 Variables and secrets)." }, 503);
+    if (b.key !== env.ADMIN_KEY) return json({ ok: false, err: "Nieprawid\u0142owy klucz \u2013 wpisz klucz i kliknij Zapisz." }, 403);
     const st = await getState(db);
     const set = /* @__PURE__ */ __name((o) => db.prepare("UPDATE state SET rnd=?, phase=?, deadline=?, revealed=?, view=? WHERE id=1").bind(o.rnd ?? st.rnd, o.phase ?? st.phase, o.deadline ?? st.deadline, JSON.stringify(o.revealed ?? st.revealed), o.view ?? st.view).run(), "set");
     switch (b.action) {
