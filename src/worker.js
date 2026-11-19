@@ -2296,6 +2296,8 @@ button.gold{background:var(--grad);color:#1a1206}button.red{background:var(--bad
 .box{background:var(--card);border-radius:12px;padding:1rem;margin:.8rem 0}input{padding:.5rem;border-radius:6px;border:1px solid var(--line);background:var(--deep);color:var(--txt);width:4.5rem}
 #st{font-size:1.1rem}.rr{display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--line)}.rr span{flex:1}
 .ok{color:var(--ok)}.bad{color:var(--bad)}
+.rr.done{opacity:.35}.rr.done span:after{content:"  \u2713 zamkni\u0119ta";color:var(--ok);font-weight:700}
+.rr.live{background:rgba(217,161,59,.12);border-radius:8px;padding-left:.4rem}.rr.live span:after{content:"  \u25CF trwa";color:var(--gold2);font-weight:700}
 </style></head><body>
 <h1>Gie\u0142da decyzji ELPLUS \xB7 panel prowadz\u0105cego</h1>
 <div class=box>Klucz: <input id=key type=password style="width:12rem"> <button onclick="saveKey()">Zapisz</button> <a href="/screen" target="_blank" style="color:var(--gold2)">Otw\xF3rz ekran</a> \xB7 <a href="/qr" target="_blank" style="color:var(--gold2)">Kody QR</a></div>
@@ -2320,7 +2322,8 @@ function peek(){fetch("/api/admin",{method:"POST",headers:{"content-type":"appli
  var s=j.state,ph={lobby:"start",open:"OTWARTA",closed:"zamkni\u0119ta",revealed:"ods\u0142oni\u0119ta"}[s.phase];
  var left=s.phase==="open"?Math.max(0,Math.round((s.deadline-Date.now())/1000)):null;
  document.getElementById("st").innerHTML="Runda: <b>"+j.rounds[s.rnd].code+" "+j.rounds[s.rnd].title+"</b> \xB7 status: <b>"+ph+"</b>"+(left!=null?" \xB7 zosta\u0142o "+Math.floor(left/60)+":"+String(left%60).padStart(2,"0"):"")+" \xB7 widok: "+s.view+" \xB7 ods\u0142oni\u0119te: "+s.revealed.join(", ");
- if(!built){built=true;document.getElementById("rounds").innerHTML="<b>Rundy</b>"+j.rounds.map(function(r){return "<div class=rr><span>"+r.code+" \xB7 "+r.title+"</span>min <input id=m"+r.id+" value="+r.minutes+"><button class=gold onclick='openR("+r.id+")'>Otw\xF3rz</button></div>"}).join("")}
+ if(!built){built=true;document.getElementById("rounds").innerHTML="<b>Rundy</b>"+j.rounds.map(function(r){return "<div class=rr id=row"+r.id+"><span>"+r.code+" \xB7 "+r.title+"</span>min <input id=m"+r.id+" value="+r.minutes+"><button class=gold onclick='openR("+r.id+")'>Otw\xF3rz</button></div>"}).join("")}
+ j.rounds.forEach(function(r){var el=document.getElementById("row"+r.id);if(!el)return;var live=r.id===s.rnd&&s.phase==="open";el.className="rr"+(live?" live":(j.done||[]).indexOf(r.id)>=0?" done":"")});
  document.getElementById("key2").innerHTML=j.key?"Klucz: <b>"+j.key.answer+"</b> \xB7 liczba "+j.key.num+" (\xB1"+Math.round(j.key.tol*100)+"%)":"";
  document.getElementById("subs").innerHTML="<tr><th>Zesp.</th><th>Wyb\xF3r</th><th>Liczba</th><th>\u017Bet.</th><th>Mandat</th><th>Notatka</th><th></th></tr>"+j.subs.sort(function(a,b){return a.grp-b.grp}).map(function(x){
   var c=j.key?(x.choice===j.key.answer?"ok":"bad"):"";return "<tr><td>"+x.grp+"</td><td class="+c+">"+x.choice+"</td><td>"+(x.num==null?"":x.num)+"</td><td>"+(x.tokens||"")+"</td><td>"+(x.extra||"")+"</td><td>"+(x.note||"").replace(/</g,"&lt;")+"</td><td><button onclick='del("+x.grp+")'>\xD7</button></td></tr>"}).join("")})}
@@ -2557,7 +2560,9 @@ async function api(req, env, url) {
         break;
       case "peek": {
         const stats = await roundStats(db, st.rnd);
-        return json({ ok: true, state: st, subs: stats.subs, key: KEY[st.rnd] || null, rounds: ROUNDS.map((r) => ({ id: r.id, code: r.code, title: r.title, minutes: r.minutes })) });
+        const played = (await db.prepare("SELECT DISTINCT rnd FROM subs").all()).results.map((x) => x.rnd);
+        const done = [.../* @__PURE__ */ new Set([...played, ...st.revealed, ...(st.phase === "closed" || st.phase === "revealed" ? [st.rnd] : [])])].filter((x) => !(x === st.rnd && st.phase === "open"));
+        return json({ ok: true, state: st, done, subs: stats.subs, key: KEY[st.rnd] || null, rounds: ROUNDS.map((r) => ({ id: r.id, code: r.code, title: r.title, minutes: r.minutes })) });
       }
       default:
         return json({ ok: false, err: "Nieznana akcja." }, 400);
