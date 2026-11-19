@@ -2296,6 +2296,11 @@ button.gold{background:var(--grad);color:#1a1206}button.red{background:var(--bad
 .box{background:var(--card);border-radius:12px;padding:1rem;margin:.8rem 0}input{padding:.5rem;border-radius:6px;border:1px solid var(--line);background:var(--deep);color:var(--txt);width:4.5rem}
 #st{font-size:1.1rem}.rr{display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--line)}.rr span{flex:1}
 .ok{color:var(--ok)}.bad{color:var(--bad)}
+.ctl{display:grid;grid-template-columns:8.5rem 1fr;gap:.6rem .8rem;align-items:center;margin-top:.8rem}.ctl .lab{color:var(--mut,#9a968c);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em}
+.seg{display:inline-flex;background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:3px;flex-wrap:wrap}.seg button{margin:0;background:transparent;border-radius:7px}.seg button.on{background:var(--grad);color:#1a1206}
+button:disabled{opacity:.3;cursor:not-allowed}.chip{display:inline-block;padding:.15rem .6rem;border-radius:99px;font-size:.85rem;font-weight:700;background:var(--line);margin-right:.3rem}
+.chip.open{background:var(--ok);color:#111}.chip.closed{background:#7a5a20}.chip.revealed{background:var(--grad);color:#1a1206}
+#toast{position:fixed;right:1rem;bottom:1rem;background:var(--ok);color:#111;font-weight:700;padding:.6rem 1rem;border-radius:10px;opacity:0;transition:opacity .3s}#toast.show{opacity:1}
 .rr.done{opacity:.35}.rr.done span:after{content:"  \u2713 zamkni\u0119ta";color:var(--ok);font-weight:700}
 .rr.live{background:rgba(217,161,59,.12);border-radius:8px;padding-left:.4rem}.rr.live span:after{content:"  \u25CF trwa";color:var(--gold2);font-weight:700}
 </style></head><body>
@@ -2303,15 +2308,18 @@ button.gold{background:var(--grad);color:#1a1206}button.red{background:var(--bad
 <div class=box>Klucz: <input id=key type=password style="width:12rem"> <button onclick="saveKey()">Zapisz</button> <a href="/screen" target="_blank" style="color:var(--gold2)">Otw\xF3rz ekran</a> \xB7 <a href="/qr" target="_blank" style="color:var(--gold2)">Kody QR</a></div>
 <div class=box style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap"><span><b>Nowa gra</b> \xB7 czy\u015Bci odpowiedzi, nazwy zespo\u0142\xF3w i ranking, wraca do ekranu startowego</span><button class=red onclick="reset()">\u21BB Nowa gra (RESET)</button></div>
 <div class=box><div id=st>\u2026</div>
-<button class=gold onclick="act('close')">Zamknij rund\u0119</button><button onclick="act('extend')">+1 min</button><button class=gold onclick="act('reveal')">Ods\u0142o\u0144 wynik</button>
-<button onclick="act('lobby')">Ekran startowy</button><br>Widok ekranu: <button onclick="act('view',{view:'round'})">Runda</button><button onclick="act('view',{view:'board'})">Ranking</button><button onclick="act('view',{view:'podium'})">Podium</button></div>
-<div class=box id=rounds></div>
+<div class=ctl><span class=lab>Runda</span><div><button id=bExt onclick="act('extend').then(function(){toast('+1 min')})">+1 min</button><button id=bClose class=gold onclick="act('close').then(function(){toast('Runda zamkni\u0119ta')})">\u25A0 Zamknij rund\u0119</button><button id=bRev class=gold onclick="act('reveal').then(function(){toast('Wynik ods\u0142oni\u0119ty')})">\u2605 Ods\u0142o\u0144 wynik</button></div>
+<span class=lab>Ekran (projektor)</span><div class=seg id=seg><button data-v=lobby onclick="scr('lobby')">Ekran startowy</button><button data-v=round onclick="scr('round')">Runda</button><button data-v=board onclick="scr('board')">Ranking</button><button data-v=podium onclick="scr('podium')">Podium</button></div></div></div>
+<div class=box id=rounds></div><div id=toast></div>
 <div class=box><b>Odpowiedzi w bie\u017C\u0105cej rundzie</b><div id=key2></div><table id=subs></table></div>
 <div class=box><button onclick="exp()">Eksport CSV</button> <span style="opacity:.7">\u2013 pobierz wyniki przed now\u0105 gr\u0105</span></div>
 <script>
 var K=localStorage.getItem("gkey")||"";document.getElementById("key").value=K;
 function saveKey(){K=document.getElementById("key").value;localStorage.setItem("gkey",K);peek()}
 function act(a,o){var b=Object.assign({key:K,action:a},o||{});return fetch("/api/admin",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}).then(function(x){return x.json()}).then(function(j){if(!j.ok)alert(j.err||"B\u0142\u0105d");peek();return j})}
+var NAMES={lobby:"Ekran startowy",round:"Runda",board:"Ranking",podium:"Podium"};
+function toast(m){var e=document.getElementById("toast");e.textContent="\u2713 "+m;e.className="show";clearTimeout(e._t);e._t=setTimeout(function(){e.className=""},1800)}
+function scr(v){(v==="lobby"?act("lobby"):act("view",{view:v})).then(function(j){if(j&&j.ok)toast("Ekran: "+NAMES[v])})}
 function openR(i){var m=document.getElementById("m"+i).value;act("open",{rnd:i,minutes:m})}
 function del(g){if(confirm("Usun\u0105\u0107 odpowied\u017A zespo\u0142u "+g+"?"))act("delete",{g:g})}
 function reset(){if(!confirm("Rozpocz\u0105\u0107 now\u0105 gr\u0119? Wszystkie odpowiedzi, nazwy zespo\u0142\xF3w i punkty zostan\u0105 usuni\u0119te."))return;act("reset",{confirm:"RESET"}).then(function(j){if(j&&j.ok){built=false;alert("Gotowe \u2013 gra zresetowana. Mo\u017Cna zaczyna\u0107 od nowa.")}})}
@@ -2321,7 +2329,10 @@ function peek(){fetch("/api/admin",{method:"POST",headers:{"content-type":"appli
  if(!j.ok){document.getElementById("st").innerHTML="<span class=bad>"+(j.err||"Brak dost\u0119pu")+"</span>";return}
  var s=j.state,ph={lobby:"start",open:"OTWARTA",closed:"zamkni\u0119ta",revealed:"ods\u0142oni\u0119ta"}[s.phase];
  var left=s.phase==="open"?Math.max(0,Math.round((s.deadline-Date.now())/1000)):null;
- document.getElementById("st").innerHTML="Runda: <b>"+j.rounds[s.rnd].code+" "+j.rounds[s.rnd].title+"</b> \xB7 status: <b>"+ph+"</b>"+(left!=null?" \xB7 zosta\u0142o "+Math.floor(left/60)+":"+String(left%60).padStart(2,"0"):"")+" \xB7 widok: "+s.view+" \xB7 ods\u0142oni\u0119te: "+s.revealed.join(", ");
+ var chips={lobby:"<span class=chip>start</span>",open:"<span class='chip open'>\u25CF OTWARTA</span>",closed:"<span class='chip closed'>zamkni\u0119ta</span>",revealed:"<span class='chip revealed'>ods\u0142oni\u0119ta</span>"}[s.phase];
+ document.getElementById("st").innerHTML="<span style='font-size:1.15rem'><b>"+j.rounds[s.rnd].code+" \xB7 "+j.rounds[s.rnd].title+"</b></span> "+chips+(left!=null?"<span class=chip>\u23F1 "+Math.floor(left/60)+":"+String(left%60).padStart(2,"0")+"</span>":"")+(s.revealed.length?"<br><small style='opacity:.7'>Ods\u0142oni\u0119te rundy: "+s.revealed.map(function(x){return j.rounds[x].code}).join(", ")+"</small>":"");
+ var cur=s.phase==="lobby"&&s.view==="round"?"lobby":s.view;[].forEach.call(document.querySelectorAll("#seg button"),function(b){b.className=b.getAttribute("data-v")===cur?"on":""});
+ document.getElementById("bExt").disabled=s.phase!=="open";document.getElementById("bClose").disabled=s.phase!=="open";document.getElementById("bRev").disabled=!(s.phase==="open"||s.phase==="closed");
  if(!built){built=true;document.getElementById("rounds").innerHTML="<b>Rundy</b>"+j.rounds.map(function(r){return "<div class=rr id=row"+r.id+"><span>"+r.code+" \xB7 "+r.title+"</span>min <input id=m"+r.id+" value="+r.minutes+"><button class=gold onclick='openR("+r.id+")'>Otw\xF3rz</button></div>"}).join("")}
  j.rounds.forEach(function(r){var el=document.getElementById("row"+r.id);if(!el)return;var live=r.id===s.rnd&&s.phase==="open";el.className="rr"+(live?" live":(j.done||[]).indexOf(r.id)>=0?" done":"")});
  document.getElementById("key2").innerHTML=j.key?"Klucz: <b>"+j.key.answer+"</b> \xB7 liczba "+j.key.num+" (\xB1"+Math.round(j.key.tol*100)+"%)":"";
